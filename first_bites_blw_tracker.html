@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f6f1e8">
+<title>First Bites • BLW Tracker</title>
+<style>
+:root{--bg:#f6f1e8;--card:#fffdf8;--ink:#26332c;--muted:#718078;--accent:#7a9b7d;--accent2:#d99a72;--line:#e5ded2;--danger:#b85c54;--shadow:0 8px 25px #27332c12}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
+header{padding:22px 18px 12px;position:sticky;top:0;background:#f6f1e8ee;backdrop-filter:blur(12px);z-index:2}
+h1{margin:0;font-size:27px;letter-spacing:-.5px}.sub{color:var(--muted);margin-top:3px}
+main{max-width:760px;margin:auto;padding:8px 16px 100px}.tabs{display:flex;gap:8px;margin:8px 0 16px}.tab{flex:1;border:1px solid var(--line);background:var(--card);padding:11px;border-radius:14px;font-weight:700;color:var(--muted)}.tab.active{background:var(--ink);color:white}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;margin:12px 0;box-shadow:var(--shadow)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(min-width:600px){.grid{grid-template-columns:repeat(3,1fr)}}
+label{font-weight:700;font-size:13px;color:var(--muted);display:block;margin:7px 0}input,select,textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:white;color:var(--ink);font:inherit}textarea{min-height:80px}
+button{border:0;border-radius:13px;padding:12px 15px;font-weight:800;background:var(--accent);color:white;cursor:pointer}.secondary{background:#ece7dc;color:var(--ink)}.danger{background:#f3d9d5;color:#7c302b}.row{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+h2,h3{margin:4px 0 10px}.pill{display:inline-block;padding:5px 9px;border-radius:99px;background:#edf2ed;color:#527058;font-size:12px;font-weight:800;margin:3px}.pill.warn{background:#f8e9dc;color:#9a603b}
+.food{display:flex;align-items:center;gap:12px}.emoji{font-size:30px;width:42px;text-align:center}.food strong{display:block}.food small{color:var(--muted)}
+.empty{text-align:center;color:var(--muted);padding:30px 8px}.stat{font-size:28px;font-weight:900}.muted{color:var(--muted)}.hidden{display:none!important}.search{margin-bottom:8px}
+</style>
+</head>
+<body>
+<header><h1>🥑 First Bites</h1><div class="sub">A simple BLW first-food tracker</div></header>
+<main>
+<div class="tabs"><button class="tab active" onclick="showTab('log',this)">Log food</button><button class="tab" onclick="showTab('history',this)">History</button><button class="tab" onclick="showTab('insights',this)">Insights</button></div>
+
+<section id="log">
+<div class="card">
+<h2>What did baby try?</h2>
+<div class="grid">
+<div><label>Date</label><input id="date" type="date"></div>
+<div><label>Meal</label><select id="meal"><option>Breakfast</option><option>Lunch</option><option>Dinner</option><option>Snack</option></select></div>
+<div><label>Food</label><input id="food" list="foods" placeholder="e.g. avocado"><datalist id="foods"></datalist></div>
+<div><label>Form / preparation</label><input id="form" placeholder="soft sticks, mashed..."></div>
+<div><label>Reaction</label><select id="reaction"><option>No reaction</option><option>Possible reaction</option><option>Confirmed reaction</option><option>Unsure</option></select></div>
+<div><label>Baby's response</label><select id="response"><option>Loved it</option><option>Liked it</option><option>Neutral</option><option>Didn't like it</option><option>Didn't really eat</option></select></div>
+</div>
+<label>Notes</label><textarea id="notes" placeholder="Gagging, texture, amount, anything to remember..."></textarea>
+<div class="row" style="margin-top:10px"><span class="muted">Tip: log ingredients separately when a meal has multiple new foods.</span><button onclick="addEntry()">+ Add to history</button></div>
+</div>
+<div class="card"><h3>Quick add</h3><div id="quick"></div></div>
+</section>
+
+<section id="history" class="hidden">
+<div class="card"><div class="row"><h2>Food history</h2><button class="secondary" onclick="exportData()">Export</button></div>
+<input class="search" id="search" placeholder="Search food, notes, or preparation..." oninput="renderHistory()">
+<div id="historyList"></div></div>
+</section>
+
+<section id="insights" class="hidden">
+<div class="card"><h2>Progress</h2><div class="grid"><div><div class="stat" id="unique">0</div><div class="muted">foods tried</div></div><div><div class="stat" id="entries">0</div><div class="muted">logs</div></div><div><div class="stat" id="reactions">0</div><div class="muted">reaction flags</div></div></div></div>
+<div class="card"><h2>Recently introduced</h2><div id="recent"></div></div>
+<div class="card"><h3>Safety note</h3><p class="muted">This is a tracking tool, not medical advice. For a suspected food allergy or severe reaction, follow your pediatrician's guidance and seek urgent care for serious symptoms such as trouble breathing, swelling, or collapse.</p></div>
+</section>
+</main>
+<script>
+const seedFoods=["Avocado","Banana","Sweet potato","Broccoli","Carrot","Egg","Peanut butter","Toast","Salmon","Yogurt","Blueberry","Strawberry","Pasta","Chicken","Beef","Oatmeal","Mango","Pear","Cucumber","Green bean"];
+let entries=JSON.parse(localStorage.getItem("blw_entries")||"[]");
+const $=id=>document.getElementById(id);
+$("date").value=new Date().toISOString().slice(0,10);
+function save(){localStorage.setItem("blw_entries",JSON.stringify(entries));}
+function addEntry(foodOverride){
+ let food=(foodOverride||$("food").value).trim(); if(!food){alert("Add a food first.");return}
+ entries.push({id:Date.now(),date:$("date").value,meal:$("meal").value,food,form:$("form").value.trim(),reaction:$("reaction").value,response:$("response").value,notes:$("notes").value.trim()});
+ save(); $("food").value="";$("form").value="";$("notes").value="";$("reaction").value="No reaction";$("response").value="Liked it"; renderAll();
+}
+function removeEntry(id){if(confirm("Remove this log?")){entries=entries.filter(e=>e.id!==id);save();renderAll()}}
+function showTab(tab,btn){["log","history","insights"].forEach(x=>$(x).classList.toggle("hidden",x!==tab));document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));btn.classList.add("active");renderAll()}
+function renderHistory(){
+ let q=($("search")?.value||"").toLowerCase();let a=entries.filter(e=>[e.food,e.form,e.notes,e.reaction].join(" ").toLowerCase().includes(q)).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+ $("historyList").innerHTML=a.length?a.map(e=>`<div class="card" style="box-shadow:none;margin:8px 0;padding:13px"><div class="row"><div class="food"><span class="emoji">🥄</span><div><strong>${esc(e.food)}</strong><small>${e.date} • ${e.meal}</small></div></div><button class="danger" onclick="removeEntry(${e.id})">Delete</button></div><div>${e.form?`<span class="pill">${esc(e.form)}</span>`:""}<span class="pill">${esc(e.response)}</span>${e.reaction!=="No reaction"?`<span class="pill warn">${esc(e.reaction)}</span>`:""}</div>${e.notes?`<div class="muted" style="margin-top:8px">${esc(e.notes)}</div>`:""}</div>`).join(""):`<div class="empty">No foods logged yet.<br>Start with the first bite! 🥑</div>`;
+}
+function renderInsights(){
+ let foods=[...new Set(entries.map(e=>e.food.toLowerCase()))];$("unique").textContent=foods.length;$("entries").textContent=entries.length;$("reactions").textContent=entries.filter(e=>e.reaction!=="No reaction").length;
+ let seen={};entries.forEach(e=>seen[e.food]=e.date);let arr=Object.entries(seen).sort((a,b)=>b[1].localeCompare(a[1])).slice(0,8);$("recent").innerHTML=arr.length?arr.map(([f,d])=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><strong>${esc(f)}</strong><span class="muted">${d}</span></div>`).join(""):`<div class="empty">Your recent foods will appear here.</div>`;
+}
+function renderQuick(){$("quick").innerHTML=seedFoods.map(f=>`<button class="secondary" style="margin:3px" onclick="addEntry('${f.replace(/'/g,"\\\\'")}')">${f}</button>`).join("")}
+function renderAll(){renderHistory();renderInsights();renderQuick();$("foods").innerHTML=[...new Set(seedFoods.concat(entries.map(e=>e.food)))].map(f=>`<option value="${esc(f)}">`).join("")}
+function exportData(){let blob=new Blob([JSON.stringify(entries,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="first-bites-history.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+renderAll();
+</script>
+</body></html>
